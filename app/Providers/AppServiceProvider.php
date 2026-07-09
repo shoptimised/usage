@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\LaravelCloud;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(LaravelCloud::class, fn (): LaravelCloud => new LaravelCloud(
+            key: (string) config('services.laravel_cloud.key'),
+            url: (string) config('services.laravel_cloud.url'),
+        ));
     }
 
     /**

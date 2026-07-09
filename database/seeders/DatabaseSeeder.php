@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,9 +18,22 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $email = config('seed.test_user.email');
+        $password = config('seed.test_user.password');
+
+        if (blank($email) || blank($password)) {
+            $this->command->warn('TEST_USER_EMAIL / TEST_USER_PASSWORD are not set — skipping test user seed.');
+
+            return;
+        }
+
+        User::updateOrCreate(
+            ['email' => $email],
+            [
+                'name' => 'Test User',
+                'password' => Hash::make($password),
+                'email_verified_at' => now(),
+            ],
+        );
     }
 }

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'laravel_cloud' => [
+        'key' => env('LARAVEL_CLOUD_API_KEY'),
+        'url' => env('LARAVEL_CLOUD_API_URL', 'https://cloud.laravel.com/api'),
+    ],
+
 ];
