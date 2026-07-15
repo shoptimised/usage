@@ -93,3 +93,52 @@ test('dashboard shows the latest usage snapshot', function () {
             ->where('usage.resources.0.total_cents', 443)
             ->where('usage.resources.0.items.0.type', 'Laravel MySQL 8.4'));
 });
+
+test('dashboard projects the calendar month cost to the hour from the last snapshot', function () {
+    $this->actingAs(User::factory()->create());
+
+    UsageSnapshot::factory()->create([
+        'period_from' => '2026-07-01T00:00:00Z',
+        'period_to' => '2026-08-01T00:00:00Z',
+        'current_spend_cents' => 50_000,
+        'burn_rate_cents_per_hour' => 100.0,
+        'cloud_updated_at' => '2026-07-14T12:30:00Z',
+    ]);
+
+    // 419.5 hours remain until the period ends: 50 000 + 100 × 419.5 = 91 950.
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('usage.summary.projection.cost_cents', 91950)
+            ->where('usage.summary.projection.remaining_hours', 419.5));
+});
+
+test('dashboard omits the month projection when the snapshot has no burn rate', function () {
+    $this->actingAs(User::factory()->create());
+
+    UsageSnapshot::factory()->create(['burn_rate_cents_per_hour' => null]);
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('usage.summary.projection', null));
+});
+
+test('dashboard clamps the month projection once the billing period has ended', function () {
+    $this->actingAs(User::factory()->create());
+
+    UsageSnapshot::factory()->create([
+        'period' => 1,
+        'period_from' => '2026-06-01T00:00:00Z',
+        'period_to' => '2026-07-01T00:00:00Z',
+        'current_spend_cents' => 80_000,
+        'burn_rate_cents_per_hour' => 100.0,
+        'cloud_updated_at' => '2026-07-05T09:00:00Z',
+    ]);
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('usage.summary.projection.cost_cents', 80000)
+            ->where('usage.summary.projection.remaining_hours', 0));
+});

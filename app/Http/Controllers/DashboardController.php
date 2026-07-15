@@ -35,6 +35,7 @@ class DashboardController extends Controller
                     'applications_cost_cents' => $snapshot->applications_cost_cents,
                     'application_count' => $snapshot->application_count,
                     'burn_rate_cents_per_hour' => $snapshot->burn_rate_cents_per_hour,
+                    'projection' => $this->monthCostProjection($snapshot),
                     'bandwidth' => $snapshot->bandwidth_usage_percentage === null && $snapshot->bandwidth_allowance_bytes === null ? null : [
                         'cost_cents' => $snapshot->bandwidth_cost_cents,
                         'usage_percentage' => $snapshot->bandwidth_usage_percentage,
@@ -53,6 +54,30 @@ class DashboardController extends Controller
                 'resources' => $this->resourceBreakdown($snapshot),
             ],
         ]);
+    }
+
+    /**
+     * Project the total cost for the entire billing month by extending the
+     * hourly burn rate across the exact hours remaining between the last
+     * snapshot's cloud timestamp and the end of the billing period.
+     *
+     * @return array{cost_cents: int, remaining_hours: float}|null
+     */
+    protected function monthCostProjection(UsageSnapshot $snapshot): ?array
+    {
+        $burnRate = $snapshot->burn_rate_cents_per_hour;
+        $lastSnapshotAt = $snapshot->cloud_updated_at ?? $snapshot->created_at;
+
+        if ($burnRate === null || $lastSnapshotAt === null || $snapshot->period_to === null) {
+            return null;
+        }
+
+        $remainingHours = max(0.0, $lastSnapshotAt->diffInHours($snapshot->period_to));
+
+        return [
+            'cost_cents' => (int) round($snapshot->current_spend_cents + $burnRate * $remainingHours),
+            'remaining_hours' => round($remainingHours, 1),
+        ];
     }
 
     /**

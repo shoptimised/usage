@@ -55,6 +55,10 @@ interface Usage {
         applications_cost_cents: number;
         application_count: number;
         burn_rate_cents_per_hour: number | null;
+        projection: {
+            cost_cents: number;
+            remaining_hours: number;
+        } | null;
         bandwidth: {
             cost_cents: number | null;
             usage_percentage: number | null;
@@ -213,6 +217,16 @@ const spendSubline = computed(() => {
     return parts.length > 0 ? parts.join(' · ') : periodLabel.value;
 });
 
+const projectionDetail = computed(() => {
+    const projection = props.usage?.summary.projection;
+
+    if (!props.usage || !projection) {
+        return '';
+    }
+
+    return `${burnRate(props.usage.summary.burn_rate_cents_per_hour)} × ${projection.remaining_hours} hours left in the billing month after the last snapshot`;
+});
+
 const addonCount = computed(
     () =>
         props.usage?.resources.find((group) => group.category === 'addon')
@@ -281,6 +295,17 @@ const environmentStatusClasses: Record<string, string> = {
                         </CardTitle>
                         <p class="text-xs text-muted-foreground">
                             {{ spendSubline }}
+                        </p>
+                        <p
+                            v-if="usage.summary.projection"
+                            class="text-xs text-muted-foreground"
+                            :title="projectionDetail"
+                        >
+                            Projected
+                            <span class="font-medium text-foreground">
+                                {{ money(usage.summary.projection.cost_cents) }}
+                            </span>
+                            by {{ formatDate(usage.period.to) }}
                         </p>
                     </CardHeader>
                 </Card>
